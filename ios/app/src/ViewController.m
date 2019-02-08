@@ -37,9 +37,14 @@
     // the Welcome page to be enabled. It defaults to disabled in the SDK at the
     // time of this writing but it is clearer to be explicit about what we want
     // anyway.
-    view.welcomePageEnabled = YES;
+    //view.welcomePageEnabled = YES;
 
-    [view join:[[JitsiMeet sharedInstance] getInitialURL]];
+    //[view join:[[JitsiMeet sharedInstance] getInitialURL]];
+    JitsiMeetingOptions *options = [JitsiMeetingOptions fromBuilder:^(JitsiMeetingOptionsBuilder *builder) {
+      builder.room = @"test123";
+      builder.audioMuted = YES;
+    }];
+    [view join:options];
 }
 
 // JitsiMeetViewDelegate

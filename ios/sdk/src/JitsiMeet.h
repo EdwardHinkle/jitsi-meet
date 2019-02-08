@@ -17,6 +17,7 @@
 
 #import <JitsiMeet/JitsiMeetView.h>
 #import <JitsiMeet/JitsiMeetViewDelegate.h>
+#import <JitsiMeet/JitsiMeetingOptions.h>
 
 
 @interface JitsiMeet : NSObject
@@ -24,6 +25,8 @@
 @property (copy, nonatomic, nullable) NSString *conferenceActivityType;
 @property (copy, nonatomic, nullable) NSString *customUrlScheme;
 @property (copy, nonatomic, nullable) NSArray<NSString *> *universalLinkDomains;
+
+@property (copy, nonatomic, nullable) JitsiMeetingOptions *defaultMeetingOptions;
 
 #pragma mak - This class is a singleton
 
@@ -44,6 +47,6 @@
 
 #pragma mark - Utility methods
 
-- (NSDictionary *)getInitialURL;
+- (JitsiMeetingOptions *)getInitialMeetingOptions;
 
 @end

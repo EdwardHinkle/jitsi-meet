@@ -20,6 +20,7 @@
 #import <React/RCTRootView.h>
 
 #import "JitsiMeet+Private.h"
+#import "JitsiMeetingOptions+Private.h"
 #import "JitsiMeetView+Private.h"
 
 
@@ -32,11 +33,7 @@
     NSString *externalAPIScope;
 
     RCTRootView *rootView;
-
-    NSNumber *_pictureInPictureEnabled;
 }
-
-@dynamic pictureInPictureEnabled;
 
 /**
  * The `JitsiMeetView`s associated with their `ExternalAPI` scopes (i.e. unique
@@ -96,37 +93,26 @@ static void initializeViewsMap() {
     // parts of the application and causes less perceived visual flicker than
     // the default background color.
     self.backgroundColor
-    = [UIColor colorWithRed:.07f green:.07f blue:.07f alpha:1];
+        = [UIColor colorWithRed:.07f green:.07f blue:.07f alpha:1];
 }
 
 #pragma mark API
 
-- (void)join:(NSDictionary *_Nullable)url {
-    [self loadURL:url];
+- (void)join:(JitsiMeetingOptions *)options {
+    JitsiMeetingOptions *options_ = options || [JitsiMeet sharedInstance].defaultMeetingOptions;
+    NSMutableDictionary *props = options_ ? [options_ asProps] : @{};
+
+    [self setProps:props];
 }
 
 - (void)leave {
-    [self loadURL:nil];
+    // TODO: merge in default options
+    [self setProps:@{}];
 }
 
-#pragma pictureInPictureEnabled getter / setter
+#pragma pictureInPictureEnabled
 
-- (void) setPictureInPictureEnabled:(BOOL)pictureInPictureEnabled {
-    _pictureInPictureEnabled
-        = [NSNumber numberWithBool:pictureInPictureEnabled];
-}
-
-- (BOOL) pictureInPictureEnabled {
-    if (_pictureInPictureEnabled) {
-        return [_pictureInPictureEnabled boolValue];
-    }
-
-    // The SDK/JitsiMeetView client/consumer did not explicitly enable/disable
-    // Picture-in-Picture. However, we may automatically deduce their
-    // intentions: we need the support of the client in order to implement
-    // Picture-in-Picture on iOS (in contrast to Android) so if the client
-    // appears to have provided the support then we can assume that they did it
-    // with the intention to have Picture-in-Picture enabled.
+- (BOOL) isPictureInPictureEnabled {
     return self.delegate
         && [self.delegate respondsToSelector:@selector(enterPictureInPicture:)];
 }
@@ -143,23 +129,10 @@ static void initializeViewsMap() {
  *
  * @param urlObject The URL to load which may identify a conference to join.
  */
-- (void)loadURL:(NSDictionary *_Nullable)urlObject {
-    NSMutableDictionary *props = [[NSMutableDictionary alloc] init];
-
-    if (self.defaultURL) {
-        props[@"defaultURL"] = [self.defaultURL absoluteString];
-    }
-
-    props[@"colorScheme"] = self.colorScheme;
+- (void)setProps:(NSMutableDictionary *_Nonnull)props {
     props[@"externalAPIScope"] = externalAPIScope;
-    props[@"pictureInPictureEnabled"] = @(self.pictureInPictureEnabled);
-    props[@"welcomePageEnabled"] = @(self.welcomePageEnabled);
-
-    // XXX If urlObject is nil, then it must appear as undefined in the
-    // JavaScript source code so that we check the launchOptions there.
-    if (urlObject) {
-        props[@"url"] = urlObject;
-    }
+    props[@"colorScheme"] = self.colorScheme;
+    props[@"pictureInPictureEnabled"] = @([self isPictureInPictureEnabled]);
 
     // XXX The method loadURL: is supposed to be imperative i.e. a second
     // invocation with one and the same URL is expected to join the respective
@@ -192,7 +165,7 @@ static void initializeViewsMap() {
     }
 }
 
-+ (BOOL)loadURLInViews:(NSDictionary *)urlObject {
++ (BOOL)setPropsInViews:(JitsiMeetingOptions *)options;
     BOOL handled = NO;
 
     if (views) {
@@ -201,7 +174,7 @@ static void initializeViewsMap() {
                 = [self viewForExternalAPIScope:externalAPIScope];
 
             if (view) {
-                [view loadURL:urlObject];
+                [view setProps:[options asProps]];
                 handled = YES;
             }
         }

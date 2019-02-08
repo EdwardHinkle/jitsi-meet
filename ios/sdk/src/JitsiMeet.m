@@ -18,6 +18,7 @@
 
 #import "Dropbox.h"
 #import "JitsiMeet+Private.h"
+#import "JitsiMeetOptions+Private.h"
 #import "JitsiMeetView+Private.h"
 #import "RCTBridgeWrapper.h"
 #import "ReactUtils.h"
@@ -71,9 +72,9 @@
   continueUserActivity:(NSUserActivity *)userActivity
     restorationHandler:(void (^)(NSArray *restorableObjects))restorationHandler {
 
-    id url = [self urlFromUserActivity:userActivity];
+    JitsiMeetingOptions *options = [self optionsFromUserActivity:userActivity];
 
-    return url && [JitsiMeetView loadURLInViews:url];
+    return options && [JitsiMeetView setPropsInViews:[options asProps]];
 }
 
 - (BOOL)application:(UIApplication *)app
@@ -100,31 +101,35 @@
 
 #pragma mark - Utility methods
 
-- (NSDictionary *)getInitialURL {
+- (JitsiMeetingOptions *)getInitialMeetingOptions {
     if (_launchOptions[UIApplicationLaunchOptionsURLKey]) {
         NSURL *url = _launchOptions[UIApplicationLaunchOptionsURLKey];
-        return @{ @"url" : url.absoluteString };
+        return [JitsiMeetingOptions fromBuilder:^(JitsiMeetingOptionsBuilder *builder) {
+            builder.room = [url absoluteString];
+        }];
     } else {
         NSDictionary *userActivityDictionary
             = _launchOptions[UIApplicationLaunchOptionsUserActivityDictionaryKey];
         NSUserActivity *userActivity
             = [userActivityDictionary objectForKey:@"UIApplicationLaunchOptionsUserActivityKey"];
         if (userActivity != nil) {
-            return [self urlFromUserActivity:userActivity];
+            return [self optionsFromUserActivity:userActivity];
         }
     }
 
     return nil;
 }
 
-- (NSDictionary *)urlFromUserActivity:(NSUserActivity *)userActivity {
+- (JitsiMeetingOptions *)optionsFromUserActivity:(NSUserActivity *)userActivity {
     NSString *activityType = userActivity.activityType;
 
     if ([activityType isEqualToString:NSUserActivityTypeBrowsingWeb]) {
         // App was started by opening a URL in the browser
         NSURL *url = userActivity.webpageURL;
         if ([_universalLinkDomains containsObject:url.host]) {
-            return @{ @"url" : url.absoluteString };
+            return [JitsiMeetingOptions fromBuilder:^(JitsiMeetingOptionsBuilder *builder) {
+                builder.room = [url absoluteString];
+            }];
         }
     } else if ([activityType isEqualToString:@"INStartAudioCallIntent"]
                || [activityType isEqualToString:@"INStartVideoCallIntent"]) {
@@ -132,27 +137,29 @@
         INIntent *intent = userActivity.interaction.intent;
         NSArray<INPerson *> *contacts;
         NSString *url;
-        BOOL startAudioOnly = NO;
+        BOOL audioOnly = NO;
 
         if ([intent isKindOfClass:[INStartAudioCallIntent class]]) {
             contacts = ((INStartAudioCallIntent *) intent).contacts;
-            startAudioOnly = YES;
+            audioOnly = YES;
         } else if ([intent isKindOfClass:[INStartVideoCallIntent class]]) {
             contacts = ((INStartVideoCallIntent *) intent).contacts;
         }
 
         if (contacts && (url = contacts.firstObject.personHandle.value)) {
-            return @{
-                     @"config": @{@"startAudioOnly":@(startAudioOnly)},
-                     @"url": url
-                     };
+            return [JitsiMeetingOptions fromBuilder:^(JitsiMeetingOptionsBuilder *builder) {
+                builder.audioOnly = audioOnly;
+                builder.room = url;
+            }];
         }
     } else if (self.conferenceActivityType && [activityType isEqualToString:self.conferenceActivityType]) {
         // App was started by continuing a registered NSUserActivity (SiriKit, Handoff, ...)
         NSString *url;
 
         if ((url = userActivity.userInfo[@"url"])) {
-            return @{ @"url" : url };
+            return [JitsiMeetingOptions fromBuilder:^(JitsiMeetingOptionsBuilder *builder) {
+                builder.room = url;
+            }];
         }
     }
 

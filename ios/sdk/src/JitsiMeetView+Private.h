@@ -20,6 +20,6 @@
 @interface JitsiMeetView ()
 
 + (instancetype)viewForExternalAPIScope:(NSString *)externalAPIScope;
-+ (BOOL)loadURLInViews:(NSDictionary *)urlObject;
++ (BOOL)setPropsInViews:(JitsiMeetingOptions *)options;
 
 @end
